@@ -248,7 +248,7 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		}
 		return err
 	}
-
+	klog.Infof("11111111111111111111schedule resource binding %s/%s", namespace, name)
 	// Update "Scheduled" condition according to schedule result.
 	defer func() {
 		s.recordScheduleResultEventForResourceBinding(rb, err)
@@ -258,11 +258,12 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		} else {
 			condition = util.NewCondition(workv1alpha2.Scheduled, scheduleFailedReason, err.Error(), metav1.ConditionFalse)
 		}
-		if updateErr := s.updateBindingScheduledConditionIfNeeded(rb, condition); updateErr != nil {
+		if updateErr := s.updateBindingScheduledConditionIfNeeded(rb, condition); updateErr == nil {
 			klog.Errorf("Failed update condition(%s) for ResourceBinding(%s/%s)", workv1alpha2.Scheduled, rb.Namespace, rb.Name)
 			if err == nil {
 				// schedule succeed but update condition failed, return err in order to retry in next loop.
-				err = updateErr
+				err = fmt.Errorf("test 11111111111111111111111111111111111")
+				klog.Infof("11111111111111111111 err : %v", err)
 			}
 		}
 	}()
