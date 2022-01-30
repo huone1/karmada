@@ -60,18 +60,18 @@ func (frw *frameworkImpl) RunFilterPlugins(ctx context.Context, placement *polic
 
 // RunScorePlugins runs the set of configured Filter plugins for resources on the cluster.
 // If any of the result is not success, the cluster is not suited for the resource.
-func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, clusters []*clusterv1alpha1.Cluster) (framework.PluginToClusterScores, error) {
+func (frw *frameworkImpl) RunScorePlugins(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec, clusters []*clusterv1alpha1.Cluster) (framework.PluginToClusterScores, error) {
 	result := make(framework.PluginToClusterScores, len(frw.filterPlugins))
 	for _, p := range frw.scorePlugins {
 		var scoreList framework.ClusterScoreList
 		for _, cluster := range clusters {
-			score, res := p.Score(ctx, placement, cluster)
+			score, res := p.Score(ctx, placement, spec, cluster)
 			if !res.IsSuccess() {
 				return nil, fmt.Errorf("plugin %q failed with: %w", p.Name(), res.AsError())
 			}
 			scoreList = append(scoreList, framework.ClusterScore{
-				Name:  cluster.Name,
-				Score: score,
+				Cluster: cluster,
+				Score:   score,
 			})
 		}
 		result[p.Name()] = scoreList
