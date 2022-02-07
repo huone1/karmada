@@ -358,7 +358,7 @@ func (s *Scheduler) doScheduleClusterBinding(name string) (err error) {
 	}
 	if features.FeatureGate.Enabled(features.Failover) {
 		klog.Infof("Reschedule ClusterResourceBinding(%s) as cluster failure", name)
-		err = s.rescheduleClusterResourceBinding(crb)
+		err = s.scheduleClusterResourceBinding(crb)
 		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
