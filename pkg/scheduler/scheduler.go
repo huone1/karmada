@@ -293,9 +293,10 @@ func (s *Scheduler) doScheduleBinding(namespace, name string) (err error) {
 		klog.Infof("Don't need to schedule ResourceBinding(%s/%s)", namespace, name)
 		return nil
 	}
+
 	if features.FeatureGate.Enabled(features.Failover) {
-		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster failure", namespace, name)
-		err = s.rescheduleResourceBinding(rb)
+		klog.Infof("Reschedule ResourceBinding(%s/%s) as cluster failure or deletion", namespace, name)
+		err = s.scheduleResourceBinding(rb)
 		metrics.BindingSchedule(string(FailoverSchedule), metrics.SinceInSeconds(start), err)
 		return err
 	}
@@ -505,12 +506,16 @@ func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha2.TargetCluster) bo
 	for i := range tcs {
 		for _, c := range clusters {
 			if c.Cluster().Name == tcs[i].Name {
-				if meta.IsStatusConditionPresentAndEqual(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady, metav1.ConditionFalse) {
+				if meta.IsStatusConditionFalse(c.Cluster().Status.Conditions, clusterv1alpha1.ClusterConditionReady) || !c.Cluster().DeletionTimestamp.IsZero() {
 					return false
 				}
-				continue
+
+				break
 			}
 		}
+
+		// don't find the target cluster in snapshot because it may have been deleted
+		return false
 	}
 	return true
 }
