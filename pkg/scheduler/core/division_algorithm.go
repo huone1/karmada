@@ -35,7 +35,8 @@ func divideReplicasByResource(
 	preference policyv1alpha1.ReplicaDivisionPreference,
 ) ([]workv1alpha2.TargetCluster, error) {
 	// Step 1: Get previous total sum of replicas.
-	assignedReplicas := util.GetSumOfReplicas(spec.Clusters)
+	_, scheduledClusters := findOutScheduledCluster(spec.Clusters, clusters)
+	assignedReplicas := util.GetSumOfReplicas(scheduledClusters)
 
 	// Step 2: Check the scale type (up or down).
 	if assignedReplicas > spec.Replicas {
