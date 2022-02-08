@@ -444,63 +444,6 @@ func (s *Scheduler) handleErr(err error, key interface{}) {
 	metrics.CountSchedulerBindings(metrics.ScheduleAttemptFailure)
 }
 
-func (s *Scheduler) rescheduleClusterResourceBinding(clusterResourceBinding *workv1alpha2.ClusterResourceBinding) error {
-	klog.V(4).InfoS("Begin rescheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
-	defer klog.V(4).InfoS("End rescheduling cluster resource binding", "clusterResourceBinding", klog.KObj(clusterResourceBinding))
-
-	policyName := util.GetLabelValue(clusterResourceBinding.Labels, policyv1alpha1.ClusterPropagationPolicyLabel)
-	policy, err := s.clusterPolicyLister.Get(policyName)
-	if err != nil {
-		klog.Errorf("Failed to get policy by policyName(%s): Error: %v", policyName, err)
-		return err
-	}
-	reScheduleResult, err := s.Algorithm.FailoverSchedule(context.TODO(), &policy.Spec.Placement, &clusterResourceBinding.Spec)
-	if err != nil {
-		return err
-	}
-	if len(reScheduleResult.SuggestedClusters) == 0 {
-		return nil
-	}
-
-	clusterResourceBinding.Spec.Clusters = reScheduleResult.SuggestedClusters
-	klog.Infof("The final binding.Spec.Cluster values are: %v\n", clusterResourceBinding.Spec.Clusters)
-
-	_, err = s.KarmadaClient.WorkV1alpha2().ClusterResourceBindings().Update(context.TODO(), clusterResourceBinding, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Scheduler) rescheduleResourceBinding(resourceBinding *workv1alpha2.ResourceBinding) error {
-	klog.V(4).InfoS("Begin rescheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
-	defer klog.V(4).InfoS("End rescheduling resource binding", "resourceBinding", klog.KObj(resourceBinding))
-
-	placement, _, err := s.getPlacement(resourceBinding)
-	if err != nil {
-		klog.Errorf("Failed to get placement by resourceBinding(%s/%s): Error: %v", resourceBinding.Namespace, resourceBinding.Name, err)
-		return err
-	}
-	reScheduleResult, err := s.Algorithm.FailoverSchedule(context.TODO(), &placement, &resourceBinding.Spec)
-	if err != nil {
-		return err
-	}
-	if len(reScheduleResult.SuggestedClusters) == 0 {
-		return nil
-	}
-
-	resourceBinding.Spec.Clusters = reScheduleResult.SuggestedClusters
-	klog.Infof("The final binding.Spec.Cluster values are: %v\n", resourceBinding.Spec.Clusters)
-
-	_, err = s.KarmadaClient.WorkV1alpha2().ResourceBindings(resourceBinding.Namespace).Update(context.TODO(), resourceBinding, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *Scheduler) allClustersInReadyState(tcs []workv1alpha2.TargetCluster) bool {
 	clusters := s.schedulerCache.Snapshot().GetClusters()
 	for i := range tcs {
