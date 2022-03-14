@@ -9,25 +9,21 @@ import (
 )
 
 type ClusterDetailInfos []ClusterDetailInfo
-
 func (a ClusterDetailInfos) Len() int           { return len(a) }
 func (a ClusterDetailInfos) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ClusterDetailInfos) Less(i, j int) bool { return a[i].Score > a[j].Score }
 
 type ZoneInfos []ZoneInfo
-
 func (a ZoneInfos) Len() int           { return len(a) }
 func (a ZoneInfos) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ZoneInfos) Less(i, j int) bool { return a[i].Score > a[j].Score }
 
 type RegionInfos []RegionInfo
-
 func (a RegionInfos) Len() int           { return len(a) }
 func (a RegionInfos) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a RegionInfos) Less(i, j int) bool { return a[i].Score > a[j].Score }
 
 type ProviderInfos []ProviderInfo
-
 func (a ProviderInfos) Len() int           { return len(a) }
 func (a ProviderInfos) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ProviderInfos) Less(i, j int) bool { return a[i].Score > a[j].Score }
@@ -133,9 +129,9 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 		clusters = append(clusters, clusterScore.Cluster)
 	}
 
-	clustersRaplicas := calAvailableReplicas(clusters, rbSpec)
-	for i, clustersRaplica := range clustersRaplicas {
-		info.Clusters[i].AvailableReplicas = int64(clustersRaplica.Replicas)
+	clustersReplicas := calAvailableReplicas(clusters, rbSpec)
+	for i, clustersReplica := range clustersReplicas {
+		info.Clusters[i].AvailableReplicas = int64(clustersReplica.Replicas)
 	}
 
 	sort.Sort(ClusterDetailInfos(info.Clusters))

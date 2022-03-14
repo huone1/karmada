@@ -63,7 +63,10 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 	}
 	klog.V(4).Infof("feasible clusters scores: %v", clustersScore)
 
-	clusters := g.selectClusters(clustersScore, placement, spec)
+	clusters, err := g.selectClusters(clustersScore, placement, spec)
+	if err != nil {
+		return result, fmt.Errorf("failed to assignReplicas: %v", err)
+	}
 
 	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
 	if err != nil {
@@ -121,11 +124,12 @@ func (g *genericScheduler) prioritizeClusters(
 	return result, nil
 }
 
-func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) []*clusterv1alpha1.Cluster {
+func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList,
+	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
 
 	groupClustersInfo := GroupClustersWithScore(clustersScore, placement, spec)
-
+	klog.V(4).Infof("groupClustersInfo: %v", groupClustersInfo)
 	return SelectBestClusters(placement, groupClustersInfo)
 }
 

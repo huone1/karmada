@@ -1,12 +1,12 @@
 package core
 
 import (
+	"fmt"
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"k8s.io/klog/v2"
 )
 
-func SelectBestClusters(placement *policyv1alpha1.Placement, groupClustersInfo *GroupClustersInfo) []*clusterv1alpha1.Cluster {
+func SelectBestClusters(placement *policyv1alpha1.Placement, groupClustersInfo *GroupClustersInfo) ([]*clusterv1alpha1.Cluster, error) {
 	if len(placement.SpreadConstraints) != 0 {
 		return selectBestClustersBySpreadConstraints(placement.SpreadConstraints, groupClustersInfo)
 	}
@@ -16,13 +16,13 @@ func SelectBestClusters(placement *policyv1alpha1.Placement, groupClustersInfo *
 		clusters = append(clusters, cluster.Cluster)
 	}
 
-	return clusters
+	return clusters, nil
 }
 
-func selectBestClustersBySpreadConstraints(spreadConstraints []policyv1alpha1.SpreadConstraint, groupClustersInfo *GroupClustersInfo) []*clusterv1alpha1.Cluster {
+func selectBestClustersBySpreadConstraints(spreadConstraints []policyv1alpha1.SpreadConstraint,
+	groupClustersInfo *GroupClustersInfo) ([]*clusterv1alpha1.Cluster, error) {
 	if len(spreadConstraints) > 1 {
-		klog.Errorf("just support single spread constraint")
-		return nil
+		return nil, fmt.Errorf("just support single spread constraint")
 	}
 
 	spreadConstraint := spreadConstraints[0]
@@ -30,15 +30,13 @@ func selectBestClustersBySpreadConstraints(spreadConstraints []policyv1alpha1.Sp
 		return selectBestClustersByCluster(spreadConstraint, groupClustersInfo)
 	}
 
-	klog.Errorf("just support cluster spread constraint")
-	return nil
+	return nil, fmt.Errorf("just support cluster spread constraint")
 }
 
-func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstraint, groupClustersInfo *GroupClustersInfo) []*clusterv1alpha1.Cluster {
+func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstraint, groupClustersInfo *GroupClustersInfo) ([]*clusterv1alpha1.Cluster, error) {
 	TotalClusterCnt := len(groupClustersInfo.Clusters)
 	if spreadConstraint.MinGroups > TotalClusterCnt {
-		klog.Errorf("the number of feasible clusters is less than spreadConstraint.MinGroups")
-		return nil
+		return nil, fmt.Errorf("the number of feasible clusters is less than spreadConstraint.MinGroups")
 	}
 
 	needCnt := spreadConstraint.MaxGroups
@@ -51,5 +49,5 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 		clusters = append(clusters, groupClustersInfo.Clusters[i].Cluster)
 	}
 
-	return clusters
+	return clusters, nil
 }
