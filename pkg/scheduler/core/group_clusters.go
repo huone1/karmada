@@ -5,6 +5,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
+	"k8s.io/klog/v2"
 	"sort"
 )
 
@@ -158,13 +159,15 @@ func (info *GroupClustersInfo) generateZoneInfo() {
 		zoneInfoMap[zone] = zoneInfo
 	}
 
+	klog.V(4).Infof("regionInfo : %v ", zoneInfoMap)
+
 	for _, val := range zoneInfoMap {
 		sort.Sort(ClusterDetailInfos(val.Clusters))
 		info.Zones = append(info.Zones, val)
 	}
 
 	sort.Sort(ZoneInfos(info.Zones))
-
+	klog.V(4).Infof("info.Zones : %v ", info.Zones)
 }
 
 func (info *GroupClustersInfo) generateRegionInfo() {
@@ -188,6 +191,7 @@ func (info *GroupClustersInfo) generateRegionInfo() {
 		regionInfoMap[zoneInfo.RegionName] = regionInfo
 	}
 
+	klog.V(4).Infof("regionInfo : %v ", regionInfoMap)
 	for _, val := range regionInfoMap {
 		sort.Sort(ClusterDetailInfos(val.Clusters))
 		sort.Sort(ZoneInfos(val.Zones))
@@ -195,6 +199,7 @@ func (info *GroupClustersInfo) generateRegionInfo() {
 	}
 
 	sort.Sort(RegionInfos(info.Regions))
+	klog.V(4).Infof("info.Regions : %v ", info.Regions)
 }
 
 func (info *GroupClustersInfo) generateProviderInfo() {
@@ -219,10 +224,13 @@ func (info *GroupClustersInfo) generateProviderInfo() {
 		providerInfoMap[regionInfo.ProviderName] = providerInfo
 	}
 
+	klog.V(4).Infof("providerInfoMap : %v ", providerInfoMap)
 	for _, val := range providerInfoMap {
 		sort.Sort(ClusterDetailInfos(val.Clusters))
 		sort.Sort(ZoneInfos(val.Zones))
 		sort.Sort(RegionInfos(val.Regions))
 		info.Providers = append(info.Providers, val)
 	}
+	sort.Sort(ProviderInfos(info.Providers))
+	klog.V(4).Infof("info.Providers : %v ", info.Providers)
 }
