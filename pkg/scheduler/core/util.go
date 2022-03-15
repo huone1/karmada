@@ -125,12 +125,11 @@ func IsJustConcernedCluster(placement *policyv1alpha1.Placement) bool {
 	strategy := placement.ReplicaScheduling
 	spreadConstraints := placement.SpreadConstraints
 
-	if strategy == nil || len(spreadConstraints) == 0 ||
-		(len(spreadConstraints) == 1 && spreadConstraints[0].SpreadByField == policyv1alpha1.SpreadByFieldCluster) {
+	if len(spreadConstraints) == 0 || (len(spreadConstraints) == 1 && spreadConstraints[0].SpreadByField == policyv1alpha1.SpreadByFieldCluster) {
 		return true
 	}
 
-	if strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
+	if strategy != nil && strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
 		strategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
 		(strategy.WeightPreference == nil || strategy.WeightPreference.DynamicWeight == "") {
 		return true
