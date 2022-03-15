@@ -1,12 +1,13 @@
-package core
+package seleteclusters
 
 import (
+	"sort"
+
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/util"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
-	"k8s.io/klog/v2"
-	"sort"
 )
 
 type ClusterDetailInfos []ClusterDetailInfo
@@ -89,7 +90,7 @@ func GroupClustersWithScore(
 	placement *policyv1alpha1.Placement,
 	spec *workv1alpha2.ResourceBindingSpec,
 ) *GroupClustersInfo {
-	if IsJustConcernedCluster(placement) {
+	if isJustConcernedCluster(placement) {
 		return groupClustersIngoreTopology(clustersScore, spec)
 	}
 
@@ -130,7 +131,7 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 		clusters = append(clusters, clusterScore.Cluster)
 	}
 
-	clustersReplicas := calAvailableReplicas(clusters, rbSpec)
+	clustersReplicas := util.CalAvailableReplicas(clusters, rbSpec)
 	for i, clustersReplica := range clustersReplicas {
 		info.Clusters[i].AvailableReplicas = int64(clustersReplica.Replicas)
 	}
@@ -159,15 +160,12 @@ func (info *GroupClustersInfo) generateZoneInfo() {
 		zoneInfoMap[zone] = zoneInfo
 	}
 
-	klog.V(4).Infof("regionInfo : %v ", zoneInfoMap)
-
 	for _, val := range zoneInfoMap {
 		sort.Sort(ClusterDetailInfos(val.Clusters))
 		info.Zones = append(info.Zones, val)
 	}
 
 	sort.Sort(ZoneInfos(info.Zones))
-	klog.V(4).Infof("info.Zones : %v ", info.Zones)
 }
 
 func (info *GroupClustersInfo) generateRegionInfo() {
@@ -191,7 +189,6 @@ func (info *GroupClustersInfo) generateRegionInfo() {
 		regionInfoMap[zoneInfo.RegionName] = regionInfo
 	}
 
-	klog.V(4).Infof("regionInfo : %v ", regionInfoMap)
 	for _, val := range regionInfoMap {
 		sort.Sort(ClusterDetailInfos(val.Clusters))
 		sort.Sort(ZoneInfos(val.Zones))
@@ -199,7 +196,6 @@ func (info *GroupClustersInfo) generateRegionInfo() {
 	}
 
 	sort.Sort(RegionInfos(info.Regions))
-	klog.V(4).Infof("info.Regions : %v ", info.Regions)
 }
 
 func (info *GroupClustersInfo) generateProviderInfo() {
@@ -224,7 +220,6 @@ func (info *GroupClustersInfo) generateProviderInfo() {
 		providerInfoMap[regionInfo.ProviderName] = providerInfo
 	}
 
-	klog.V(4).Infof("providerInfoMap : %v ", providerInfoMap)
 	for _, val := range providerInfoMap {
 		sort.Sort(ClusterDetailInfos(val.Clusters))
 		sort.Sort(ZoneInfos(val.Zones))
@@ -232,5 +227,21 @@ func (info *GroupClustersInfo) generateProviderInfo() {
 		info.Providers = append(info.Providers, val)
 	}
 	sort.Sort(ProviderInfos(info.Providers))
-	klog.V(4).Infof("info.Providers : %v ", info.Providers)
+}
+
+func isJustConcernedCluster(placement *policyv1alpha1.Placement) bool {
+	strategy := placement.ReplicaScheduling
+	spreadConstraints := placement.SpreadConstraints
+
+	if len(spreadConstraints) == 0 || (len(spreadConstraints) == 1 && spreadConstraints[0].SpreadByField == policyv1alpha1.SpreadByFieldCluster) {
+		return true
+	}
+
+	if strategy != nil && strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
+		strategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
+		(strategy.WeightPreference == nil || strategy.WeightPreference.DynamicWeight == "") {
+		return true
+	}
+
+	return false
 }

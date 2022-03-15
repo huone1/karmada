@@ -11,6 +11,8 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/seleteclusters"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/util"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
@@ -128,9 +130,12 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
 
-	groupClustersInfo := GroupClustersWithScore(clustersScore, placement, spec)
-	klog.V(4).Infof("groupClustersInfo: %v", groupClustersInfo)
-	return SelectBestClusters(placement, groupClustersInfo)
+	groupClustersInfo := seleteclusters.GroupClustersWithScore(clustersScore, placement, spec)
+	klog.V(4).Infof("cluster info: %v", groupClustersInfo.Clusters)
+	klog.V(4).Infof("zone info: %v", groupClustersInfo.Zones)
+	klog.V(4).Infof("region info: %v", groupClustersInfo.Regions)
+	klog.V(4).Infof("provider info: %v", groupClustersInfo.Providers)
+	return seleteclusters.SelectBestClusters(placement, groupClustersInfo)
 }
 
 func (g *genericScheduler) assignReplicas(
@@ -160,7 +165,7 @@ func (g *genericScheduler) assignReplicas(
 				// If ReplicaDivisionPreference is set to "Weighted" and WeightPreference is not set,
 				// scheduler will weight all clusters averagely.
 				if replicaSchedulingStrategy.WeightPreference == nil {
-					replicaSchedulingStrategy.WeightPreference = getDefaultWeightPreference(clusters)
+					replicaSchedulingStrategy.WeightPreference = util.getDefaultWeightPreference(clusters)
 				}
 				// 2.1.1 Dynamic Weighted Scheduling (by resource)
 				if len(replicaSchedulingStrategy.WeightPreference.DynamicWeight) != 0 {
