@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/karmada-io/karmada/pkg/scheduler/core/selectclusters"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -12,6 +11,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/selectclusters"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
@@ -66,9 +66,9 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 
 	clusters, err := g.selectClusters(clustersScore, placement, spec)
 	if err != nil {
-		return result, fmt.Errorf("failed to assignReplicas: %v", err)
+		return result, fmt.Errorf("failed to select clusters: %v", err)
 	}
-	klog.V(4).Infof("select clusters: %v", clusters)
+	klog.V(4).Infof("selected clusters: %v", clusters)
 
 	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
 	if err != nil {

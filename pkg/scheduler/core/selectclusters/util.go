@@ -3,8 +3,9 @@ package selectclusters
 import (
 	"context"
 	"fmt"
-	"k8s.io/klog/v2"
 	"math"
+
+	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"

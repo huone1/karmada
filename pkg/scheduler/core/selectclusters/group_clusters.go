@@ -75,7 +75,7 @@ func GroupClustersWithScore(
 	placement *policyv1alpha1.Placement,
 	spec *workv1alpha2.ResourceBindingSpec,
 ) *GroupClustersInfo {
-	if isJustConcernedCluster(placement) {
+	if isTopologyIgnored(placement) {
 		return groupClustersIngoreTopology(clustersScore, spec)
 	}
 
@@ -214,11 +214,7 @@ func (info *GroupClustersInfo) generateProviderInfo() {
 	sortProviders(info.Providers)
 }
 
-func isJustConcernedCluster(placement *policyv1alpha1.Placement) bool {
-	if placement == nil {
-		return true
-	}
-
+func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
 	strategy := placement.ReplicaScheduling
 	spreadConstraints := placement.SpreadConstraints
 
@@ -226,6 +222,9 @@ func isJustConcernedCluster(placement *policyv1alpha1.Placement) bool {
 		return true
 	}
 
+	// adjust whether the assignment strategy is the staticWeight
+	// the staticWeight implies the selection attribute of the cluster and is conflict with the spread constraint,
+	// so It's not necessary to group the cluster for zone/region/provider
 	if strategy != nil && strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
 		strategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
 		(strategy.WeightPreference == nil || strategy.WeightPreference.DynamicWeight == "") {
