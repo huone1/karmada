@@ -1,4 +1,4 @@
-package selectclusters
+package spreadconstraint
 
 import (
 	"sort"
@@ -9,14 +9,12 @@ import (
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 )
 
-// GroupClustersInfo indicate the cluster globally view
+// GroupClustersInfo indicate the cluster global view
 type GroupClustersInfo struct {
-	// Providers from globally view, sorted by providers.Score descending.
-	Providers []ProviderInfo
-	// Regions from globally view, sorted by region.Score descending.
-	Regions []RegionInfo
-	// Zones from globally view, sorted by zone.Score descending.
-	Zones []ZoneInfo
+	Providers map[string]ProviderInfo
+	Regions   map[string]RegionInfo
+	Zones     map[string]ZoneInfo
+
 	// Clusters from globally view, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
 }
@@ -27,8 +25,8 @@ type ProviderInfo struct {
 	Score             int64
 	AvailableReplicas int64
 
-	Regions []RegionInfo
-	Zones   []ZoneInfo
+	Regions map[string]struct{}
+	Zones   map[string]struct{}
 	// Clusters under this provider, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
 }
@@ -39,10 +37,7 @@ type RegionInfo struct {
 	Score             int64
 	AvailableReplicas int64
 
-	ProviderName string
-
-	// Zones under this region, sorted by zone.Score descending.
-	Zones []ZoneInfo
+	Zones map[string]struct{}
 	// Clusters under this region, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
 }
@@ -52,9 +47,6 @@ type ZoneInfo struct {
 	Name              string
 	Score             int64
 	AvailableReplicas int64
-
-	RegionName   string
-	ProviderName string
 
 	// Clusters under this zone, sorted by cluster.Score descending.
 	Clusters []ClusterDetailInfo
@@ -79,18 +71,24 @@ func GroupClustersWithScore(
 		return groupClustersIngoreTopology(clustersScore, spec)
 	}
 
-	return groupClustersBasedTopology(clustersScore, spec)
+	return groupClustersBasedTopology(clustersScore, spec, placement.SpreadConstraints)
 }
 
 func groupClustersBasedTopology(
 	clustersScore framework.ClusterScoreList,
 	rbSpec *workv1alpha2.ResourceBindingSpec,
+	spreadConstraints []policyv1alpha1.SpreadConstraint,
 ) *GroupClustersInfo {
-	groupClustersInfo := &GroupClustersInfo{}
+	groupClustersInfo := &GroupClustersInfo{
+		Providers: make(map[string]ProviderInfo),
+		Regions:   make(map[string]RegionInfo),
+		Zones:     make(map[string]ZoneInfo),
+	}
+
 	groupClustersInfo.generateClustersInfo(clustersScore, rbSpec)
-	groupClustersInfo.generateZoneInfo()
-	groupClustersInfo.generateRegionInfo()
-	groupClustersInfo.generateProviderInfo()
+	groupClustersInfo.generateZoneInfo(spreadConstraints)
+	groupClustersInfo.generateRegionInfo(spreadConstraints)
+	groupClustersInfo.generateProviderInfo(spreadConstraints)
 
 	return groupClustersInfo
 }
@@ -124,94 +122,96 @@ func (info *GroupClustersInfo) generateClustersInfo(clustersScore framework.Clus
 	sortClusters(info.Clusters)
 }
 
-func (info *GroupClustersInfo) generateZoneInfo() {
-	zoneInfoMap := make(map[string]ZoneInfo)
+func (info *GroupClustersInfo) generateZoneInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldZone) {
+		return
+	}
 
 	for _, clusterInfo := range info.Clusters {
 		zone := clusterInfo.Cluster.Spec.Zone
-		zoneInfo, ok := zoneInfoMap[zone]
+		if zone == "" {
+			continue
+		}
+
+		zoneInfo, ok := info.Zones[zone]
 		if !ok {
 			zoneInfo = ZoneInfo{
-				Name:         zone,
-				RegionName:   clusterInfo.Cluster.Spec.Region,
-				ProviderName: clusterInfo.Cluster.Spec.Provider,
-				Clusters:     make([]ClusterDetailInfo, 0),
+				Name:     zone,
+				Clusters: make([]ClusterDetailInfo, 0),
 			}
 		}
 
 		zoneInfo.Clusters = append(zoneInfo.Clusters, clusterInfo)
 		zoneInfo.Score += clusterInfo.Score
 		zoneInfo.AvailableReplicas += clusterInfo.AvailableReplicas
-		zoneInfoMap[zone] = zoneInfo
+		info.Zones[zone] = zoneInfo
 	}
-
-	for _, val := range zoneInfoMap {
-		sortClusters(val.Clusters)
-		info.Zones = append(info.Zones, val)
-	}
-
-	sortZones(info.Zones)
 }
 
-func (info *GroupClustersInfo) generateRegionInfo() {
-	regionInfoMap := make(map[string]RegionInfo)
+func (info *GroupClustersInfo) generateRegionInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldRegion) {
+		return
+	}
 
-	for _, zoneInfo := range info.Zones {
-		regionInfo, ok := regionInfoMap[zoneInfo.RegionName]
-		if !ok {
-			regionInfo = RegionInfo{
-				Name:         zoneInfo.RegionName,
-				ProviderName: zoneInfo.ProviderName,
-				Zones:        make([]ZoneInfo, 0),
-				Clusters:     make([]ClusterDetailInfo, 0),
-			}
+	for _, clusterInfo := range info.Clusters {
+		region := clusterInfo.Cluster.Spec.Region
+		if region == "" {
+			continue
 		}
 
-		regionInfo.Score += zoneInfo.Score
-		regionInfo.AvailableReplicas += zoneInfo.AvailableReplicas
-		regionInfo.Zones = append(regionInfo.Zones, zoneInfo)
-		regionInfo.Clusters = append(regionInfo.Clusters, zoneInfo.Clusters...)
-		regionInfoMap[zoneInfo.RegionName] = regionInfo
-	}
-
-	for _, val := range regionInfoMap {
-		sortClusters(val.Clusters)
-		sortZones(val.Zones)
-		info.Regions = append(info.Regions, val)
-	}
-
-	sortRegions(info.Regions)
-}
-
-func (info *GroupClustersInfo) generateProviderInfo() {
-	providerInfoMap := make(map[string]ProviderInfo)
-
-	for _, regionInfo := range info.Regions {
-		providerInfo, ok := providerInfoMap[regionInfo.ProviderName]
+		regionInfo, ok := info.Regions[region]
 		if !ok {
-			providerInfo = ProviderInfo{
-				Name:     regionInfo.ProviderName,
-				Regions:  make([]RegionInfo, 0),
-				Zones:    make([]ZoneInfo, 0),
+			regionInfo = RegionInfo{
+				Name:     region,
+				Zones:    make(map[string]struct{}),
 				Clusters: make([]ClusterDetailInfo, 0),
 			}
 		}
 
-		providerInfo.Score += regionInfo.Score
-		providerInfo.AvailableReplicas += regionInfo.AvailableReplicas
-		providerInfo.Regions = append(providerInfo.Regions, regionInfo)
-		providerInfo.Zones = append(providerInfo.Zones, regionInfo.Zones...)
-		providerInfo.Clusters = append(providerInfo.Clusters, regionInfo.Clusters...)
-		providerInfoMap[regionInfo.ProviderName] = providerInfo
+		if clusterInfo.Cluster.Spec.Zone != "" {
+			regionInfo.Zones[clusterInfo.Cluster.Spec.Zone] = struct{}{}
+		}
+		regionInfo.Clusters = append(regionInfo.Clusters, clusterInfo)
+		regionInfo.Score += clusterInfo.Score
+		regionInfo.AvailableReplicas += clusterInfo.AvailableReplicas
+		info.Regions[region] = regionInfo
+	}
+}
+
+func (info *GroupClustersInfo) generateProviderInfo(spreadConstraints []policyv1alpha1.SpreadConstraint) {
+	if !IsSpreadConstraintExisted(spreadConstraints, policyv1alpha1.SpreadByFieldProvider) {
+		return
 	}
 
-	for _, val := range providerInfoMap {
-		sortClusters(val.Clusters)
-		sortZones(val.Zones)
-		sortRegions(val.Regions)
-		info.Providers = append(info.Providers, val)
+	for _, clusterInfo := range info.Clusters {
+		provider := clusterInfo.Cluster.Spec.Provider
+		if provider == "" {
+			continue
+		}
+
+		providerInfo, ok := info.Providers[provider]
+		if !ok {
+			providerInfo = ProviderInfo{
+				Name:     provider,
+				Regions:  make(map[string]struct{}),
+				Zones:    make(map[string]struct{}),
+				Clusters: make([]ClusterDetailInfo, 0),
+			}
+		}
+
+		if clusterInfo.Cluster.Spec.Zone != "" {
+			providerInfo.Zones[clusterInfo.Cluster.Spec.Zone] = struct{}{}
+		}
+
+		if clusterInfo.Cluster.Spec.Region != "" {
+			providerInfo.Regions[clusterInfo.Cluster.Spec.Region] = struct{}{}
+		}
+
+		providerInfo.Clusters = append(providerInfo.Clusters, clusterInfo)
+		providerInfo.Score += clusterInfo.Score
+		providerInfo.AvailableReplicas += clusterInfo.AvailableReplicas
+		info.Providers[provider] = providerInfo
 	}
-	sortProviders(info.Providers)
 }
 
 func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
@@ -222,9 +222,7 @@ func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
 		return true
 	}
 
-	// adjust whether the assignment strategy is the staticWeight
-	// the staticWeight implies the selection attribute of the cluster and is conflict with the spread constraint,
-	// so It's not necessary to group the cluster for zone/region/provider
+	// If the replica division preference is 'static weighted', ignore the declaration specified by spread constraints.
 	if strategy != nil && strategy.ReplicaSchedulingType == policyv1alpha1.ReplicaSchedulingTypeDivided &&
 		strategy.ReplicaDivisionPreference == policyv1alpha1.ReplicaDivisionPreferenceWeighted &&
 		(strategy.WeightPreference == nil || strategy.WeightPreference.DynamicWeight == "") {
@@ -235,36 +233,6 @@ func isTopologyIgnored(placement *policyv1alpha1.Placement) bool {
 }
 
 func sortClusters(infos []ClusterDetailInfo) {
-	sort.Slice(infos, func(i, j int) bool {
-		if infos[i].Score != infos[j].Score {
-			return infos[i].Score > infos[j].Score
-		}
-
-		return infos[i].Name < infos[j].Name
-	})
-}
-
-func sortZones(infos []ZoneInfo) {
-	sort.Slice(infos, func(i, j int) bool {
-		if infos[i].Score != infos[j].Score {
-			return infos[i].Score > infos[j].Score
-		}
-
-		return infos[i].Name < infos[j].Name
-	})
-}
-
-func sortRegions(infos []RegionInfo) {
-	sort.Slice(infos, func(i, j int) bool {
-		if infos[i].Score != infos[j].Score {
-			return infos[i].Score > infos[j].Score
-		}
-
-		return infos[i].Name < infos[j].Name
-	})
-}
-
-func sortProviders(infos []ProviderInfo) {
 	sort.Slice(infos, func(i, j int) bool {
 		if infos[i].Score != infos[j].Score {
 			return infos[i].Score > infos[j].Score

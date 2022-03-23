@@ -1,4 +1,4 @@
-package selectclusters
+package spreadconstraint
 
 import (
 	"fmt"
@@ -36,14 +36,14 @@ func selectBestClustersBySpreadConstraints(spreadConstraints []policyv1alpha1.Sp
 }
 
 func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstraint, groupClustersInfo *GroupClustersInfo) ([]*clusterv1alpha1.Cluster, error) {
-	TotalClusterCnt := len(groupClustersInfo.Clusters)
-	if spreadConstraint.MinGroups > TotalClusterCnt {
+	totalClusterCnt := len(groupClustersInfo.Clusters)
+	if spreadConstraint.MinGroups > totalClusterCnt {
 		return nil, fmt.Errorf("the number of feasible clusters is less than spreadConstraint.MinGroups")
 	}
 
 	needCnt := spreadConstraint.MaxGroups
-	if spreadConstraint.MaxGroups > TotalClusterCnt {
-		needCnt = TotalClusterCnt
+	if spreadConstraint.MaxGroups > totalClusterCnt {
+		needCnt = totalClusterCnt
 	}
 
 	var clusters []*clusterv1alpha1.Cluster

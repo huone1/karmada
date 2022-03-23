@@ -1,8 +1,9 @@
-package selectclusters
+package spreadconstraint
 
 import (
 	"context"
 	"fmt"
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"math"
 
 	"k8s.io/klog/v2"
@@ -52,4 +53,15 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 
 	klog.V(4).Infof("cluster replicas info: %v", availableClusters)
 	return availableClusters
+}
+
+// IsSpreadConstraintExisted judge if the specific field is existed in the spread constraints
+func IsSpreadConstraintExisted(spreadConstraints []policyv1alpha1.SpreadConstraint, field policyv1alpha1.SpreadFieldValue) bool {
+	for _, spreadConstraint := range spreadConstraints {
+		if spreadConstraint.SpreadByField == field {
+			return true
+		}
+	}
+
+	return false
 }

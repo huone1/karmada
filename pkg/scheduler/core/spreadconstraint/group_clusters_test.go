@@ -1,4 +1,4 @@
-package selectclusters
+package spreadconstraint
 
 import (
 	"testing"

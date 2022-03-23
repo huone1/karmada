@@ -11,7 +11,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/scheduler/cache"
-	"github.com/karmada-io/karmada/pkg/scheduler/core/selectclusters"
+	"github.com/karmada-io/karmada/pkg/scheduler/core/spreadconstraint"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/scheduler/metrics"
@@ -130,9 +130,9 @@ func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreLi
 	placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) ([]*clusterv1alpha1.Cluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
 
-	groupClustersInfo := selectclusters.GroupClustersWithScore(clustersScore, placement, spec)
+	groupClustersInfo := spreadconstraint.GroupClustersWithScore(clustersScore, placement, spec)
 
-	return selectclusters.SelectBestClusters(placement, groupClustersInfo)
+	return spreadconstraint.SelectBestClusters(placement, groupClustersInfo)
 }
 
 func (g *genericScheduler) assignReplicas(
