@@ -23,8 +23,8 @@ func NewClusterWithTopology(name, provider, region, zone string) *clusterv1alpha
 	}
 }
 
-func generateClusterInfo() []ClusterDetailInfo {
-	return []ClusterDetailInfo{
+func generateClusterInfo() []*ClusterDetailInfo {
+	return []*ClusterDetailInfo{
 		{
 			Name:              "member4",
 			Score:             60,

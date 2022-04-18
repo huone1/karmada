@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 
 	"k8s.io/klog/v2"
 
@@ -64,4 +65,14 @@ func IsSpreadConstraintExisted(spreadConstraints []policyv1alpha1.SpreadConstrai
 	}
 
 	return false
+}
+
+func sortClusters(infos []*ClusterDetailInfo) {
+	sort.Slice(infos, func(i, j int) bool {
+		if infos[i].Score != infos[j].Score {
+			return infos[i].Score > infos[j].Score
+		}
+
+		return infos[i].Name < infos[j].Name
+	})
 }

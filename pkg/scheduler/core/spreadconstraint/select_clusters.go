@@ -74,8 +74,8 @@ func selectBestClustersByCluster(spreadConstraint policyv1alpha1.SpreadConstrain
 // |------------------------------------------------|
 // |AvailableReplicas |   40    |    30   |    60   |
 // |------------------------------------------------|
-func selectClustersByAvailableResource(candidateClusters []ClusterDetailInfo, needClusterCount, needReplicas int32) ([]ClusterDetailInfo, bool) {
-	retClusters := make([]ClusterDetailInfo, needClusterCount)
+func selectClustersByAvailableResource(candidateClusters []*ClusterDetailInfo, needClusterCount, needReplicas int32) ([]*ClusterDetailInfo, bool) {
+	retClusters := make([]*ClusterDetailInfo, needClusterCount)
 	copy(retClusters, candidateClusters)
 	candidateClusters = candidateClusters[needClusterCount:]
 
@@ -105,7 +105,7 @@ func selectClustersByAvailableResource(candidateClusters []ClusterDetailInfo, ne
 }
 
 // GetClusterWithMaxAvailableResource returns the cluster with maxAvailableReplicas
-func GetClusterWithMaxAvailableResource(candidateClusters []ClusterDetailInfo, originReplicas int64) int {
+func GetClusterWithMaxAvailableResource(candidateClusters []*ClusterDetailInfo, originReplicas int64) int {
 	var maxAvailableReplicas = originReplicas
 	var clusterID = -1
 	for i := range candidateClusters {
@@ -118,7 +118,7 @@ func GetClusterWithMaxAvailableResource(candidateClusters []ClusterDetailInfo, o
 	return clusterID
 }
 
-func checkAvailableResource(clusters []ClusterDetailInfo, needReplicas int32) bool {
+func checkAvailableResource(clusters []*ClusterDetailInfo, needReplicas int32) bool {
 	var total int64
 
 	for i := range clusters {
